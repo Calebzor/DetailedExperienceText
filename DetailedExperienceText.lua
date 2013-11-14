@@ -238,6 +238,8 @@ function addon:UpdateText()
 		XP/hour this session:<T TextColor='ffffff00'> %s\n</T>\
 		Time to level for this level:<T TextColor='ffffff00'> %s\n</T>\
 		Time to level for this session:<T TextColor='ffffff00'> %s\n</T>\
+		\
+		<T TextColor='ffffff00'>Alt+Left Click to reset session data.\n</T>\
 		</T>\
 	"):format(
 		formatTime(nTotalTimePlayed), -- Total time played
@@ -323,6 +325,13 @@ end
 -----------------------------------------------------------------------------------------------
 -- DetailedExperienceTextForm Functions
 -----------------------------------------------------------------------------------------------
+function addon:OnMouseButtonDown(_, _, button)
+	if button and button == 0 and Apollo.IsAltKeyDown() then -- left button and alt key down
+		self.nSessionStart = time()
+		self.nSessionXPStart = GetXp()
+	end
+end
+
 function addon:CloseOptions()
 	self.wndOptions:Close()
 end
