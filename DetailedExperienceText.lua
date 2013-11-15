@@ -30,6 +30,7 @@ local tonumber = tonumber
 local type = type
 local ipairs = ipairs
 local setmetatable = setmetatable
+local select = select
 local time = os.time
 
 -----------------------------------------------------------------------------------------------
@@ -37,7 +38,6 @@ local time = os.time
 -----------------------------------------------------------------------------------------------
 local DetailedExperienceText = {}
 local addon = DetailedExperienceText
-
 
 -----------------------------------------------------------------------------------------------
 -- Strings
@@ -59,6 +59,29 @@ local L = {
 	["TimeToLevelForThisSession"] = "Time to level for this session",
 	["Default"] = "Default",
 	["Nothing"] = "Nothing",
+}
+
+-- falses are empty lines
+-- always have empty line at top and bottom to have it fit nicely in the frame
+local tTooltipLines = {
+	false,
+	"TotalTimePlayed",
+	"TimeThisLevel",
+	"TimeThisSession",
+	false,
+	"Level",
+	"TotalXPThisLevel",
+	"Gained",
+	"Remaining",
+	"TotalXPThisSession",
+	"RestXP",
+	false,
+	"XPPerHourThisLevel",
+	"XPPerHourThisSession",
+	"TimeToLevelForThisLevel",
+	"TimeToLevelForThisSession",
+	"Alt+Left Click to reset session data.",
+	false,
 }
 
 -----------------------------------------------------------------------------------------------
@@ -107,6 +130,12 @@ function addon:OnLoad()
 	-- load our forms
 	self.wndMain = Apollo.LoadForm("DetailedExperienceText.xml", "DetailedExperienceTextForm", nil, self)
 	self.wndMain:Show(true)
+
+	self.wndTooltipForm = self.wndMain:FindChild("Text"):LoadTooltipForm("DetailedExperienceText.xml", "TooltipForm", self)
+	local l,t,r,b = self.wndTooltipForm:GetAnchorOffsets()
+	-- do it like this so when changing the TooltipLine height it dynamically changes the whole tooltips height too
+	self.wndTooltipForm:SetAnchorOffsets(l, t, r, #tTooltipLines*select(4, Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", nil, self):GetAnchorOffsets()))
+	self.wndMain:FindChild("Text"):SetTooltipForm(self.wndTooltipForm)
 
 	self.wndOptions = Apollo.LoadForm("DetailedExperienceText.xml", "Options", nil, self)
 	self.wndOptions:Show(false)
@@ -200,7 +229,6 @@ function addon:UpdateText()
 	end
 	local nTimeThisLevel = nTotalTimePlayed - self.tDB.nLevelStart
 
-
 	local nLevel = GameLib.GetPlayerUnit():GetBasicStats().level
 	local nXPThisSession = GetXp() - self.nSessionXPStart
 
@@ -221,43 +249,7 @@ function addon:UpdateText()
 		timeToLevelThisSession = self.nXPRemainingToNextLevel * self.nTimeThisSession / nXPThisSession
 	end
 
-	local sTooltip = ("\
-		<T Font='CRB_InterfaceMedium_B' TextColor='ffffffff'>\
-		Total time played:<T TextColor='ffffff00'> %s\n</T>\
-		Time this level:<T TextColor='ffffff00'> %s\n</T>\
-		Time this session:<T TextColor='ffffff00'> %s\n</T>\
-		\
-		Level:<T TextColor='ffffff00'> %d\n</T>\
-		Total XP this level:<T TextColor='ffffff00'> %s\n</T>\
-		Gained:<T TextColor='ffffff00'> %s\n</T>\
-		Remaining:<T TextColor='ffffff00'> %s\n</T>\
-		Total XP this session:<T TextColor='ffffff00'> %s\n</T>\
-		Rest XP:<T TextColor='ffffff00'> %s\n</T>\
-		\
-		XP/hour this level:<T TextColor='ffffff00'> %s\n</T>\
-		XP/hour this session:<T TextColor='ffffff00'> %s\n</T>\
-		Time to level for this level:<T TextColor='ffffff00'> %s\n</T>\
-		Time to level for this session:<T TextColor='ffffff00'> %s\n</T>\
-		\
-		<T TextColor='ffffff00'>Alt+Left Click to reset session data.\n</T>\
-		</T>\
-	"):format(
-		formatTime(nTotalTimePlayed), -- Total time played
-		formatTime(nTimeThisLevel), -- Time this level
-		formatTime(self.nTimeThisSession), -- Time this session
-		nLevel, -- Level
-		formatInt(self.nXPToNextLevel), -- Total XP this level
-		("%s (%.2f%%)"):format(formatInt(self.nXPIntoLevel), self.nXPPerc), -- Gained
-		("%s (%.2f%%)"):format(formatInt(self.nXPRemainingToNextLevel), 100-self.nXPPerc), -- Remaining
-		formatInt(nXPThisSession), -- Total XP this session
-		formatInt(self.nRestedXP), -- Rest XP
-		formatInt(nXPPerHourThisLevel), -- XP/hour this level
-		formatInt(nXPPerHourThisSession), -- XP/hour this session
-		type(timeToLevelThisLevel) == "number" and formatTime(timeToLevelThisLevel) or timeToLevelThisLevel, -- Time to level for this level
-		type(timeToLevelThisSession) == "number" and formatTime(timeToLevelThisSession) or timeToLevelThisSession -- Time to level for this session
-	)
-
-	local tShortTextsAndValues = {
+	self.tShortTextsAndValues = {
 		["TotalTimePlayed"] = {"TTP", formatTime(nTotalTimePlayed)},
 		["TimeThisLevel"] = {"TTL", formatTime(nTimeThisLevel)},
 		["TimeThisSession"] = {"TTS", formatTime(self.nTimeThisSession)},
@@ -274,24 +266,35 @@ function addon:UpdateText()
 		["Default"] = {"XP", ("%.2f%% (%s/%s)"):format(self.nXPPerc, formatInt(self.nXPIntoLevel), formatInt(self.nXPToNextLevel))}
 	}
 
-	self.wndMain:FindChild("Text"):SetTooltip(sTooltip)
+	self.wndTooltipForm:DestroyChildren() -- clear the tooltip
+	for k, v in ipairs(tTooltipLines) do
+		-- empty line text fields are left empty
+		local wndCurrLines = Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", self.wndTooltipForm, self)
+		if v and self.tShortTextsAndValues[v] then
+			wndCurrLines:FindChild("Key"):SetText(L[v]..":") -- this is alligned to right
+			wndCurrLines:FindChild("Value"):SetText(self.tShortTextsAndValues[v][2])
+		elseif v then
+			wndCurrLines:SetText(v) -- full line string aligned to center
+		end
+	end
+	self.wndTooltipForm:ArrangeChildrenVert(0)
 
 	local left = ""
 	if self.tDB.LeftText then
-		left = ("%s: %s "):format(tShortTextsAndValues[self.tDB.LeftText][1], tShortTextsAndValues[self.tDB.LeftText][2])
+		left = ("%s: %s "):format(self.tShortTextsAndValues[self.tDB.LeftText][1], self.tShortTextsAndValues[self.tDB.LeftText][2])
 	end
 	local middle = ""
 	if self.tDB.MiddleText then
-		middle = ("%s: %s "):format(tShortTextsAndValues[self.tDB.MiddleText][1], tShortTextsAndValues[self.tDB.MiddleText][2])
+		middle = ("%s: %s "):format(self.tShortTextsAndValues[self.tDB.MiddleText][1], self.tShortTextsAndValues[self.tDB.MiddleText][2])
 	end
 	local right = ""
 	if self.tDB.RightText then
-		right = ("%s: %s "):format(tShortTextsAndValues[self.tDB.RightText][1], tShortTextsAndValues[self.tDB.RightText][2])
+		right = ("%s: %s "):format(self.tShortTextsAndValues[self.tDB.RightText][1], self.tShortTextsAndValues[self.tDB.RightText][2])
 	end
 
 	local str = left .. middle .. right
 	if string.len(str) == 0 then -- everything is nil, still display something
-		str = ("%s: %s"):format(tShortTextsAndValues["Default"][1], tShortTextsAndValues["Default"][2])
+		str = ("%s: %s"):format(self.tShortTextsAndValues["Default"][1], self.tShortTextsAndValues["Default"][2])
 	end
 	self.wndMain:FindChild("Text"):SetText(str)
 end
