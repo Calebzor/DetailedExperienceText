@@ -370,6 +370,10 @@ function addon:OnMoveableBtn(wndHandler)
 	end
 end
 
+function addon:OnResetPositionButton()
+	self.wndMain:SetAnchorOffsets(260, -28, 576, 0)
+end
+
 function addon:OnWidthSliderChanged(wndHandler, wndControl, fValue, fOldValue)
 	local l,t,r,b = self.wndMain:GetAnchorOffsets()
 	self.wndMain:SetAnchorOffsets(l, t, l+fValue, b)
