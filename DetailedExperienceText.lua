@@ -21,6 +21,7 @@ local GetRestXp = GetRestXp
 local GetXpToCurrentLevel = GetXpToCurrentLevel
 local GetXpToNextLevel = GetXpToNextLevel
 local GetXpToNextLevel = GetXpToNextLevel
+local GetElderPoints = GetElderPoints
 local Apollo = Apollo
 local GameLib = GameLib
 local math = math
@@ -57,6 +58,8 @@ local L = {
 	["XPPerHourThisSession"] = "XP/h this session",
 	["TimeToLevelForThisLevel"] = "Time to level for this level",
 	["TimeToLevelForThisSession"] = "Time to level for this session",
+	["ElderPoints"] = "Elder points",
+	["ElderPointsWeeklyMax"] = "ElderPointsWeeklyMax",
 	["Default"] = "Default",
 	["Nothing"] = "Nothing",
 }
@@ -81,6 +84,9 @@ local tTooltipLines = {
 	"TimeToLevelForThisLevel",
 	"TimeToLevelForThisSession",
 	"Alt+Left Click to reset session data.",
+	false,
+	"ElderPoints",
+	"ElderPointsWeeklyMax",
 	false,
 }
 
@@ -263,6 +269,8 @@ function addon:UpdateText()
 		["XPPerHourThisSession"] = {"XP/hTS", formatInt(nXPPerHourThisSession)},
 		["TimeToLevelForThisLevel"] = {"TTLFTL", type(timeToLevelThisLevel) == "number" and formatTime(timeToLevelThisLevel) or timeToLevelThisLevel},
 		["TimeToLevelForThisSession"] = {"TTLFTS", type(timeToLevelThisSession) == "number" and formatTime(timeToLevelThisSession) or timeToLevelThisSession},
+		["ElderPoints"] = {"EP", formatInt(GetElderPoints())},
+		["ElderPointsWeeklyMax"] = {"EPWM", formatInt(GameLib.ElderPointsDailyMax)},
 		["Default"] = {"XP", ("%.2f%% (%s/%s)"):format(self.nXPPerc, formatInt(self.nXPIntoLevel), formatInt(self.nXPToNextLevel))}
 	}
 
