@@ -229,7 +229,7 @@ function addon:UpdateText()
 	end
 	local nTimeThisLevel = nTotalTimePlayed - self.tDB.nLevelStart
 
-	local nLevel = GameLib.GetPlayerUnit():GetBasicStats().level
+	local nLevel = GameLib.GetPlayerUnit():GetBasicStats().nLevel
 	local nXPThisSession = GetXp() - self.nSessionXPStart
 
 	local nXPPerHourThisLevel = round(self.nXPIntoLevel/(nTimeThisLevel/3600))
