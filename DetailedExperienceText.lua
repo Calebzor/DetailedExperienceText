@@ -22,6 +22,7 @@ local GetXpToCurrentLevel = GetXpToCurrentLevel
 local GetXpToNextLevel = GetXpToNextLevel
 local GetXpToNextLevel = GetXpToNextLevel
 local GetElderPoints = GetElderPoints
+local GetPeriodicElderPoints = GetPeriodicElderPoints
 local Apollo = Apollo
 local GameLib = GameLib
 local math = math
@@ -58,8 +59,8 @@ local L = {
 	["XPPerHourThisSession"] = "XP/h this session",
 	["TimeToLevelForThisLevel"] = "Time to level for this level",
 	["TimeToLevelForThisSession"] = "Time to level for this session",
-	["ElderPoints"] = "Elder points",
-	["ElderPointsWeeklyMax"] = "ElderPointsWeeklyMax",
+	["ElderPointsPerGem"] = "Elder points/gem",
+	["WeeklyElderPoints"] = "Weekly elder points",
 	["Default"] = "Default",
 	["Nothing"] = "Nothing",
 }
@@ -85,8 +86,8 @@ local tTooltipLines = {
 	"TimeToLevelForThisSession",
 	"Alt+Left Click to reset session data.",
 	false,
-	"ElderPoints",
-	"ElderPointsWeeklyMax",
+	"ElderPointsPerGem",
+	"WeeklyElderPoints",
 	false,
 }
 
@@ -269,8 +270,8 @@ function addon:UpdateText()
 		["XPPerHourThisSession"] = {"XP/hTS", formatInt(nXPPerHourThisSession)},
 		["TimeToLevelForThisLevel"] = {"TTLFTL", type(timeToLevelThisLevel) == "number" and formatTime(timeToLevelThisLevel) or timeToLevelThisLevel},
 		["TimeToLevelForThisSession"] = {"TTLFTS", type(timeToLevelThisSession) == "number" and formatTime(timeToLevelThisSession) or timeToLevelThisSession},
-		["ElderPoints"] = {"EP", formatInt(GetElderPoints())},
-		["ElderPointsWeeklyMax"] = {"EPWM", formatInt(GameLib.ElderPointsDailyMax)},
+		["ElderPointsPerGem"] = {"EPPG", formatInt(GetElderPoints())},
+		["WeeklyElderPoints"] = {"WEP", formatInt(GetPeriodicElderPoints())},
 		["Default"] = {"XP", ("%.2f%% (%s/%s)"):format(self.nXPPerc, formatInt(self.nXPIntoLevel), formatInt(self.nXPToNextLevel))}
 	}
 
@@ -288,15 +289,15 @@ function addon:UpdateText()
 	self.wndTooltipForm:ArrangeChildrenVert(0)
 
 	local left = ""
-	if self.tDB.LeftText then
+	if self.tDB.LeftText and self.tShortTextsAndValues[self.tDB.LeftText] then
 		left = ("%s: %s "):format(self.tShortTextsAndValues[self.tDB.LeftText][1], self.tShortTextsAndValues[self.tDB.LeftText][2])
 	end
 	local middle = ""
-	if self.tDB.MiddleText then
+	if self.tDB.MiddleText and self.tShortTextsAndValues[self.tDB.MiddleText] then
 		middle = ("%s: %s "):format(self.tShortTextsAndValues[self.tDB.MiddleText][1], self.tShortTextsAndValues[self.tDB.MiddleText][2])
 	end
 	local right = ""
-	if self.tDB.RightText then
+	if self.tDB.RightText and self.tShortTextsAndValues[self.tDB.RightText] then
 		right = ("%s: %s "):format(self.tShortTextsAndValues[self.tDB.RightText][1], self.tShortTextsAndValues[self.tDB.RightText][2])
 	end
 
