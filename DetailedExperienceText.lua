@@ -31,6 +31,7 @@ local tostring = tostring
 local tonumber = tonumber
 local type = type
 local ipairs = ipairs
+local pairs = pairs
 local setmetatable = setmetatable
 local select = select
 local time = os.time
@@ -98,7 +99,6 @@ function addon:new(o)
 	o = o or {}
 	setmetatable(o, self)
 	self.__index = self
-	-- initialize variables here
 	return o
 end
 
@@ -147,9 +147,9 @@ function addon:OnLoad()
 	self.wndOptions = Apollo.LoadForm("DetailedExperienceText.xml", "Options", nil, self)
 	self.wndOptions:Show(false)
 
-	self.wndOptions:FindChild("LeftText"):FindChild("ChoiceContainer"):Show(false)
-	self.wndOptions:FindChild("MiddleText"):FindChild("ChoiceContainer"):Show(false)
-	self.wndOptions:FindChild("RightText"):FindChild("ChoiceContainer"):Show(false)
+	local wLeftTextWidget = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidget", self.wndOptions:FindChild("LeftText"), self)
+	local wMiddleTextWidget = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidget", self.wndOptions:FindChild("MiddleText"), self)
+	local wRightTextWidget = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidget", self.wndOptions:FindChild("RightText"), self)
 end
 
 -----------------------------------------------------------------------------------------------
@@ -272,7 +272,8 @@ function addon:UpdateText()
 		["TimeToLevelForThisSession"] = {"TTLFTS", type(timeToLevelThisSession) == "number" and formatTime(timeToLevelThisSession) or timeToLevelThisSession},
 		["ElderPointsPerGem"] = {"EPPG", formatInt(GetElderPoints())},
 		["WeeklyElderPoints"] = {"WEP", formatInt(GetPeriodicElderPoints())},
-		["Default"] = {"XP", ("%.2f%% (%s/%s)"):format(self.nXPPerc, formatInt(self.nXPIntoLevel), formatInt(self.nXPToNextLevel))}
+		["Default"] = {"XP", ("%.2f%% (%s/%s)"):format(self.nXPPerc, formatInt(self.nXPIntoLevel), formatInt(self.nXPToNextLevel))},
+		["Nothing"] = { "Nothing" },
 	}
 
 	self.wndTooltipForm:DestroyChildren() -- clear the tooltip
@@ -334,6 +335,51 @@ function addon:OnTimer()
 	end
 end
 
+----------------------------------------------------------------------------------------------
+-- Dropdown Widget
+-----------------------------------------------------------------------------------------------
+
+function addon:OnDropDownMainButton(wHandler)
+	local tData = self.tShortTextsAndValues
+	local choiceContainer = wHandler:FindChild("ChoiceContainer")
+	choiceContainer:DestroyChildren() -- clear the container, we populate it every time it opens
+	local nCounter = 0
+	local wEntry
+	for sNewName, _ in pairs(tData) do
+		wEntry = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidgetEntryButton", choiceContainer, self)
+		wEntry:SetText(L[sNewName])
+		wEntry:SetData(sNewName)
+		wEntry:Show(true)
+		nCounter = nCounter + 1
+	end
+	choiceContainer:ArrangeChildrenVert(0)
+	if nCounter == 0 then -- no entry added yet add an entry that says that
+		wEntry = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidgetEntryButton", choiceContainer, self)
+		wEntry:SetText("No entry added yet")
+		wEntry:Show(true)
+		nCounter = nCounter + 1
+	end
+
+	local l,t,r,b = choiceContainer:GetAnchorOffsets()
+	choiceContainer:SetAnchorOffsets(l, t, r, t+nCounter*wEntry:GetHeight())
+	choiceContainer:Show(true)
+	l,t,r,b = wHandler:FindChild("ChoiceContainerBG"):GetAnchorOffsets()
+	wHandler:FindChild("ChoiceContainerBG"):SetAnchorOffsets(l, t, r, t+nCounter*wEntry:GetHeight()+30)
+	wHandler:FindChild("ChoiceContainerBG"):Show(true)
+end
+
+function addon:OnDropDownEntrySelect(wHandler)
+	wHandler:GetParent():GetParent():SetText(wHandler:GetText())
+	wHandler:GetParent():Show(false)
+	wHandler:GetParent():GetParent():FindChild("ChoiceContainerBG"):Show(false)
+
+	self.tDB[wHandler:GetParent():GetParent():GetParent():GetParent():GetName()] = wHandler:GetData() ~= "Nothing" and wHandler:GetData() or nil
+end
+
+function addon:OnDropDownChoiceContainerHide(wHandler)
+	wHandler:GetParent():FindChild("ChoiceContainer"):Show(false)
+end
+
 -----------------------------------------------------------------------------------------------
 -- DetailedExperienceTextForm Functions
 -----------------------------------------------------------------------------------------------
@@ -354,17 +400,9 @@ function addon:OnOptionsShow()
 	self.wndOptions:FindChild("WidthEditBox"):SetText(width)
 	self.wndOptions:FindChild("MoveableBtn"):SetText(self.tDB.moveable and "Yes" or "No")
 
-	self.wndOptions:FindChild("LeftText"):FindChild("DropTextSelect"):SetText(self.tDB.LeftText and L[self.tDB.LeftText] or L["Nothing"])
-	self.wndOptions:FindChild("MiddleText"):FindChild("DropTextSelect"):SetText(self.tDB.MiddleText and L[self.tDB.MiddleText] or L["Nothing"])
-	self.wndOptions:FindChild("RightText"):FindChild("DropTextSelect"):SetText(self.tDB.RightText and L[self.tDB.RightText] or L["Nothing"])
-
-	local texts = {"LeftText", "MiddleText", "RightText"}
-	for k, form in ipairs(texts) do
-		local arBtns = self.wndOptions:FindChild(form):GetChildren()
-		for idxBtn = 1, #arBtns do
-			arBtns[idxBtn]:SetCheck(false)
-		end
-	end
+	self.wndOptions:FindChild("LeftText"):FindChild("MainButton"):SetText(self.tDB.LeftText and L[self.tDB.LeftText] or L["Nothing"])
+	self.wndOptions:FindChild("MiddleText"):FindChild("MainButton"):SetText(self.tDB.MiddleText and L[self.tDB.MiddleText] or L["Nothing"])
+	self.wndOptions:FindChild("RightText"):FindChild("MainButton"):SetText(self.tDB.RightText and L[self.tDB.RightText] or L["Nothing"])
 end
 
 function addon:OnMoveableBtn(wndHandler)
@@ -387,21 +425,6 @@ function addon:OnWidthSliderChanged(wndHandler, wndControl, fValue, fOldValue)
 	local l,t,r,b = self.wndMain:GetAnchorOffsets()
 	self.wndMain:SetAnchorOffsets(l, t, l+fValue, b)
 	self.wndOptions:FindChild("WidthEditBox"):SetText(fValue)
-end
-
-function addon:OnTextSelect(wndHandler, wndControl)
-	if wndHandler ~= wndControl then -- in case the window closing trips this
-		return
-	end
-	wndControl:FindChild("ChoiceContainer"):Show(wndControl:IsChecked())
-end
-
-function addon:OnTextItemSelect(wndHandler, wndControl)
-	local sTextPosition = wndControl:GetParent():GetParent():GetParent():GetName()
-	self.tDB[sTextPosition] = wndHandler:GetName() ~= "Nothing" and wndHandler:GetName() or nil
-
-	wndControl:GetParent():GetParent():SetText(wndControl:GetText())
-	wndControl:GetParent():Close()
 end
 
 -----------------------------------------------------------------------------------------------
