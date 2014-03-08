@@ -62,6 +62,11 @@ local L = {
 	["TimeToLevelForThisSession"] = "Time to level for this session",
 	["ElderPointsPerGem"] = "Elder points/gem",
 	["WeeklyElderPoints"] = "Weekly elder points",
+	["WeeklyElderPointsCap"] = "Weekly elder points cap",
+	["EPToWeeklyCap"] = "EP to weekly cap",
+	["TotalEPThisSession"] = "Total EP this session",
+	["EPPerHourThisSession"] = "EP/h this session",
+	["TimeToWeeklyEPCapForThisSession"] = "Time to weekly EP cap for this session",
 	["Default"] = "Default",
 	["Nothing"] = "Nothing",
 }
@@ -85,10 +90,16 @@ local tTooltipLines = {
 	"XPPerHourThisSession",
 	"TimeToLevelForThisLevel",
 	"TimeToLevelForThisSession",
-	"Alt+Left Click to reset session data.",
 	false,
 	"ElderPointsPerGem",
 	"WeeklyElderPoints",
+	"WeeklyElderPointsCap",
+	"EPToWeeklyCap",
+	"TotalEPThisSession",
+	"EPPerHourThisSession",
+	"TimeToWeeklyEPCapForThisSession",
+	false,
+	"Alt+Left Click to reset session data.",
 	false,
 }
 
@@ -125,6 +136,7 @@ function addon:OnLoad()
 	self.nTimeThisSession = nil
 	self.nSessionStart = time()
 	self.nSessionXPStart = GetXp()
+	self.nSessionEPStart = GetPeriodicElderPoints()
 
 	self.tDB = {}
 	self.tDB.nPlayed = 0
@@ -238,9 +250,12 @@ function addon:UpdateText()
 
 	local nLevel = GameLib.GetPlayerUnit():GetBasicStats().nLevel
 	local nXPThisSession = GetXp() - self.nSessionXPStart
+	local nEPThisSession = GetPeriodicElderPoints() - self.nSessionEPStart
 
 	local nXPPerHourThisLevel = round(self.nXPIntoLevel/(nTimeThisLevel/3600))
 	local nXPPerHourThisSession = round(nXPThisSession/(self.nTimeThisSession/3600))
+
+	local nEPPerHourThisSession = round(nEPThisSession/(self.nTimeThisSession/3600))
 
 	local timeToLevelThisLevel
 	if GetXp() == 0 then
@@ -254,6 +269,13 @@ function addon:UpdateText()
 		timeToLevelThisSession = "Infinite"
 	else
 		timeToLevelThisSession = self.nXPRemainingToNextLevel * self.nTimeThisSession / nXPThisSession
+	end
+
+	local timeToCapThisSession
+	if nEPThisSession == 0 then
+		timeToCapThisSession = "Infinite"
+	else
+		timeToCapThisSession = (GameLib.ElderPointsDailyMax-GetPeriodicElderPoints()) * self.nTimeThisSession / nEPThisSession
 	end
 
 	self.tShortTextsAndValues = {
@@ -270,8 +292,13 @@ function addon:UpdateText()
 		["XPPerHourThisSession"] = {"XP/hTS", formatInt(nXPPerHourThisSession)},
 		["TimeToLevelForThisLevel"] = {"TTLFTL", type(timeToLevelThisLevel) == "number" and formatTime(timeToLevelThisLevel) or timeToLevelThisLevel},
 		["TimeToLevelForThisSession"] = {"TTLFTS", type(timeToLevelThisSession) == "number" and formatTime(timeToLevelThisSession) or timeToLevelThisSession},
-		["ElderPointsPerGem"] = {"EPPG", formatInt(GetElderPoints())},
+		["ElderPointsPerGem"] = {"EPPG", ("%s/%s"):format(formatInt(GetElderPoints()), formatInt(GameLib.ElderPointsPerGem))},
 		["WeeklyElderPoints"] = {"WEP", formatInt(GetPeriodicElderPoints())},
+		["WeeklyElderPointsCap"] = {"WEPC", formatInt(GameLib.ElderPointsDailyMax)},
+		["EPToWeeklyCap"] = {"EPTWC", formatInt(GameLib.ElderPointsDailyMax-GetPeriodicElderPoints())},
+		["TotalEPThisSession"] = {"TEPTS", formatInt(nEPThisSession)},
+		["EPPerHourThisSession"] = {"EP/hTS", formatInt(nEPPerHourThisSession)},
+		["TimeToWeeklyEPCapForThisSession"] = {"TTWEPCFTS", type(timeToCapThisSession) == "number" and formatTime(timeToCapThisSession) or timeToCapThisSession},
 		["Default"] = {"XP", ("%.2f%% (%s/%s)"):format(self.nXPPerc, formatInt(self.nXPIntoLevel), formatInt(self.nXPToNextLevel))},
 		["Nothing"] = { "Nothing" },
 	}
@@ -313,6 +340,10 @@ function addon:GetXP()
 	if self.nSessionXPStart == 0 then -- failed to get xp on logon
 		self.nSessionXPStart = GetXp()
 	end
+	if self.nSessionEPStart == 0 then -- failed to get ep on logon
+		self.nSessionEPStart = GetPeriodicElderPoints()
+	end
+
 	local nTotalXpToCurrentLevel = GetXpToCurrentLevel()
 
 	self.nXPIntoLevel = GetXp() - nTotalXpToCurrentLevel
@@ -387,6 +418,7 @@ function addon:OnMouseButtonDown(_, _, button)
 	if button and button == 0 and Apollo.IsAltKeyDown() then -- left button and alt key down
 		self.nSessionStart = time()
 		self.nSessionXPStart = GetXp()
+		self.nSessionEPStart = GetPeriodicElderPoints()
 	end
 end
 
