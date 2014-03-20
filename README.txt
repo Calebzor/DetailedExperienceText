@@ -1,4 +1,4 @@
 DetailedExperienceText
 ======================
 
-Provide detailed information about your experience gain. /det
+WildStar Addon that provides detailed information about your experience gain. /det
