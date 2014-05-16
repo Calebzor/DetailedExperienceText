@@ -23,6 +23,7 @@ local GetXpToNextLevel = GetXpToNextLevel
 local GetXpToNextLevel = GetXpToNextLevel
 local GetElderPoints = GetElderPoints
 local GetPeriodicElderPoints = GetPeriodicElderPoints
+local Event_FireGenericEvent = Event_FireGenericEvent
 local Apollo = Apollo
 local GameLib = GameLib
 local math = math
@@ -122,11 +123,11 @@ end
 -----------------------------------------------------------------------------------------------
 function addon:OnLoad()
 	-- Register handlers for events, slash commands and timer, etc.
-	-- e.g. Apollo.RegisterEventHandler("KeyDown", "OnKeyDown", self)
-	Apollo.RegisterSlashCommand("det", "OnDetailedExperienceTextOn", self)
+	Apollo.RegisterSlashCommand("det", "OnDETOptions", self)
 	Apollo.RegisterTimerHandler("OneSecTimer", "OnTimer", self)
 	Apollo.RegisterEventHandler("UI_XPChanged", "GetXP", self)
 	Apollo.RegisterEventHandler("PlayerLevelChange", "OnPlayerLevelChange", self)
+	Apollo.RegisterEventHandler("PlayedTime", "OnPlayedtime", self)
 	self.nXPIntoLevel = nil
 	self.nXPToNextLevel = nil
 	self.nXPRemainingToNextLevel = nil
@@ -162,11 +163,19 @@ function addon:OnLoad()
 	local wLeftTextWidget = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidget", self.wndOptions:FindChild("LeftText"), self)
 	local wMiddleTextWidget = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidget", self.wndOptions:FindChild("MiddleText"), self)
 	local wRightTextWidget = Apollo.LoadForm("DetailedExperienceText.xml", "DropDownWidget", self.wndOptions:FindChild("RightText"), self)
+
+	Apollo.RegisterEventHandler("OnDETOptions", "OnDETOptions", self)
+	Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
 end
 
 -----------------------------------------------------------------------------------------------
 -- DetailedExperienceText Functions
 -----------------------------------------------------------------------------------------------
+
+function addon:OnInterfaceMenuListHasLoaded()
+	Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "Detailed Experience Text", { "OnDETOptions", "", ""})
+end
+
 function addon:OnSave(eLevel)
 	if eLevel ~= GameLib.CodeEnumAddonSaveLevel.Character then return end
 	self.tDB.nPlayed = tostring(self.tDB.nPlayed + self.nTimeThisSession)
@@ -181,6 +190,7 @@ function addon:OnSave(eLevel)
 end
 
 function addon:OnRestore(eLevel, tData)
+	if eLevel ~= GameLib.CodeEnumAddonSaveLevel.Character then return end
 	-- just store this and use it later
 	self.tDB.nLevelStart = tonumber(tData.nLevelStart)
 	self.tDB.nPlayed =  tonumber(tData.nPlayed or 0)
@@ -204,9 +214,8 @@ function addon:OnPlayerLevelChange(nLevel, nAttributePoints, nAbilityPoints)
 end
 
 -- on SlashCommand "/det"
-function addon:OnDetailedExperienceTextOn()
+function addon:OnDETOptions()
 	self.wndOptions:Show(true)
-	--self.wndMain:Show(true) -- show the window
 end
 
 local function formatInt(number)
@@ -357,6 +366,11 @@ function addon:GetXP()
 	end
 
 	self:UpdateText()
+end
+
+function addon:OnPlayedtime(strCreationDate, strPlayedTime, strPlayedLevelTime, strPlayedSessionTime, dateCreation, nSecondsPlayed, nSecondsLevel, nSecondsSession)
+	self.tDB.nPlayed = nSecondsPlayed
+	self.tDB.nLevelStart = nSecondsPlayed-nSecondsLevel
 end
 
 -- on timer

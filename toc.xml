@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
-<Addon Author="Caleb" APIVersion="7" Name="DetailedExperienceText" Description="Provide detailed information about your experience gain. /det" Version="1.17">
+<Addon Author="Caleb" APIVersion="8" Name="DetailedExperienceText" Description="Provide detailed information about your experience gain. /det" Version="1.18">
     <Script Name="DetailedExperienceText.lua"/>
     <Form Name="DetailedExperienceText.xml"/>
 </Addon>
