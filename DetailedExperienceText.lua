@@ -10,6 +10,7 @@
 
 require "Window"
 require "GameLib"
+require "Money"
 require "math"
 require "string"
 
@@ -26,6 +27,7 @@ local GetPeriodicElderPoints = GetPeriodicElderPoints
 local Event_FireGenericEvent = Event_FireGenericEvent
 local Apollo = Apollo
 local GameLib = GameLib
+local Money = Money
 local math = math
 local string = string
 local tostring = tostring
@@ -68,6 +70,7 @@ local L = {
 	["TotalEPThisSession"] = "Total EP this session",
 	["EPPerHourThisSession"] = "EP/h this session",
 	["TimeToWeeklyEPCapForThisSession"] = "Time to weekly EP cap for this session",
+	["MoneyPerHourThisSession"] = "Money/h this session",
 	["Default"] = "Default",
 	["Nothing"] = "Nothing",
 }
@@ -100,6 +103,8 @@ local tTooltipLines = {
 	"EPPerHourThisSession",
 	"TimeToWeeklyEPCapForThisSession",
 	false,
+	"MoneyPerHourThisSession",
+	false,
 	"Alt+Left Click to reset session data.",
 	false,
 }
@@ -127,6 +132,7 @@ function addon:OnLoad()
 	Apollo.RegisterTimerHandler("OneSecTimer", "OnTimer", self)
 	Apollo.RegisterEventHandler("UI_XPChanged", "GetXP", self)
 	Apollo.RegisterEventHandler("PlayerLevelChange", "OnPlayerLevelChange", self)
+	Apollo.RegisterEventHandler("LootedMoney", "OnLootedMoney", self)
 	Apollo.RegisterEventHandler("PlayedTime", "OnPlayedtime", self)
 	self.nXPIntoLevel = nil
 	self.nXPToNextLevel = nil
@@ -138,6 +144,7 @@ function addon:OnLoad()
 	self.nSessionStart = time()
 	self.nSessionXPStart = GetXp()
 	self.nSessionEPStart = GetPeriodicElderPoints()
+	self.nSessionMoney = 0
 
 	self.tDB = {}
 	self.tDB.nPlayed = 0
@@ -156,6 +163,22 @@ function addon:OnLoad()
 	-- do it like this so when changing the TooltipLine height it dynamically changes the whole tooltips height too
 	self.wndTooltipForm:SetAnchorOffsets(l, t, r, #tTooltipLines*select(4, Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", nil, self):GetAnchorOffsets()))
 	self.wndMain:FindChild("Text"):SetTooltipForm(self.wndTooltipForm)
+	self.wndTooltipForm:DestroyChildren() -- clear the tooltip
+	self.tTooltipLines = {}
+	for k, v in ipairs(tTooltipLines) do
+		-- empty line text fields are left empty
+		self.tTooltipLines[k] = {}
+		self.tTooltipLines[k].form = Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", self.wndTooltipForm, self)
+		if v then
+			if v == "MoneyPerHourThisSession" then
+				self.tTooltipLines[k].wMoney = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
+			end
+			if L[v] then
+				self.tTooltipLines[k].form:FindChild("Key"):SetText(L[v]..":") -- this is alligned to right
+			end
+		end
+	end
+	self.wndTooltipForm:ArrangeChildrenVert(0)
 
 	self.wndOptions = Apollo.LoadForm("DetailedExperienceText.xml", "Options", nil, self)
 	self.wndOptions:Show(false)
@@ -211,6 +234,15 @@ end
 
 function addon:OnPlayerLevelChange(nLevel, nAttributePoints, nAbilityPoints)
 	self.tDB.nLevelStart = self.tDB.nPlayed + self.nTimeThisSession
+end
+
+function addon:OnLootedMoney(monLooted)
+	local eCurrencyType = monLooted:GetMoneyType()
+	if eCurrencyType ~= Money.CodeEnumCurrencyType.Credits then
+		return
+	end
+	self.nSessionMoney = self.nSessionMoney + monLooted:GetAmount()
+	--D(monLooted:GetAmount())
 end
 
 -- on SlashCommand "/det"
@@ -312,15 +344,16 @@ function addon:UpdateText()
 		["Nothing"] = { "Nothing" },
 	}
 
-	self.wndTooltipForm:DestroyChildren() -- clear the tooltip
 	for k, v in ipairs(tTooltipLines) do
 		-- empty line text fields are left empty
-		local wndCurrLines = Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", self.wndTooltipForm, self)
-		if v and self.tShortTextsAndValues[v] then
-			wndCurrLines:FindChild("Key"):SetText(L[v]..":") -- this is alligned to right
-			wndCurrLines:FindChild("Value"):SetText(self.tShortTextsAndValues[v][2])
-		elseif v then
-			wndCurrLines:SetText(v) -- full line string aligned to center
+		if v then
+			if v == "MoneyPerHourThisSession" then
+				self.tTooltipLines[k].wMoney:SetAmount(round(self.nSessionMoney/(self.nTimeThisSession/3600)))
+			elseif self.tShortTextsAndValues[v] then
+				self.tTooltipLines[k].form:FindChild("Value"):SetText(self.tShortTextsAndValues[v][2])
+			else
+				self.tTooltipLines[k].form:SetText(v)
+			end
 		end
 	end
 	self.wndTooltipForm:ArrangeChildrenVert(0)
@@ -433,6 +466,7 @@ function addon:OnMouseButtonDown(_, _, button)
 		self.nSessionStart = time()
 		self.nSessionXPStart = GetXp()
 		self.nSessionEPStart = GetPeriodicElderPoints()
+		self.nSessionMoney = 0
 	end
 end
 
