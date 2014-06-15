@@ -70,7 +70,8 @@ local L = {
 	["TotalEPThisSession"] = "Total EP this session",
 	["EPPerHourThisSession"] = "EP/h this session",
 	["TimeToWeeklyEPCapForThisSession"] = "Time to weekly EP cap for this session",
-	["MoneyPerHourThisSession"] = "Money/h this session",
+	["MoneyGainedPerHourThisSession"] = "Money gained/h this session",
+	["MoneyGainedThisSession"] = "Money gained this session",
 	["Default"] = "Default",
 	["Nothing"] = "Nothing",
 }
@@ -103,7 +104,8 @@ local tTooltipLines = {
 	"EPPerHourThisSession",
 	"TimeToWeeklyEPCapForThisSession",
 	false,
-	"MoneyPerHourThisSession",
+	"MoneyGainedPerHourThisSession",
+	"MoneyGainedThisSession",
 	false,
 	"Alt+Left Click to reset session data.",
 	false,
@@ -170,8 +172,10 @@ function addon:OnLoad()
 		self.tTooltipLines[k] = {}
 		self.tTooltipLines[k].form = Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", self.wndTooltipForm, self)
 		if v then
-			if v == "MoneyPerHourThisSession" then
-				self.tTooltipLines[k].wMoney = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
+			if v == "MoneyGainedPerHourThisSession" then
+				self.tTooltipLines[k].wMoneyPerHour = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
+			elseif v == "MoneyGainedThisSession" then
+				self.tTooltipLines[k].wMoneyGained = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
 			end
 			if L[v] then
 				self.tTooltipLines[k].form:FindChild("Key"):SetText(L[v]..":") -- this is alligned to right
@@ -242,7 +246,6 @@ function addon:OnLootedMoney(monLooted)
 		return
 	end
 	self.nSessionMoney = self.nSessionMoney + monLooted:GetAmount()
-	--D(monLooted:GetAmount())
 end
 
 -- on SlashCommand "/det"
@@ -347,8 +350,10 @@ function addon:UpdateText()
 	for k, v in ipairs(tTooltipLines) do
 		-- empty line text fields are left empty
 		if v then
-			if v == "MoneyPerHourThisSession" then
-				self.tTooltipLines[k].wMoney:SetAmount(round(self.nSessionMoney/(self.nTimeThisSession/3600)))
+			if v == "MoneyGainedPerHourThisSession" then
+				self.tTooltipLines[k].wMoneyPerHour:SetAmount(round(self.nSessionMoney/(self.nTimeThisSession/3600)))
+			elseif v == "MoneyGainedThisSession" then
+				self.tTooltipLines[k].wMoneyGained:SetAmount(round(self.nSessionMoney))
 			elseif self.tShortTextsAndValues[v] then
 				self.tTooltipLines[k].form:FindChild("Value"):SetText(self.tShortTextsAndValues[v][2])
 			else
