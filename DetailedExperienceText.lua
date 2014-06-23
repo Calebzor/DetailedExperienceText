@@ -337,7 +337,7 @@ function addon:UpdateText()
 		["TimeToLevelForThisLevel"] = {"TTLFTL", type(timeToLevelThisLevel) == "number" and formatTime(timeToLevelThisLevel) or timeToLevelThisLevel},
 		["TimeToLevelForThisSession"] = {"TTLFTS", type(timeToLevelThisSession) == "number" and formatTime(timeToLevelThisSession) or timeToLevelThisSession},
 		["ElderPointsPerGem"] = {"EPPG", ("%s/%s"):format(formatInt(GetElderPoints()), formatInt(GameLib.ElderPointsPerGem))},
-		["WeeklyElderPoints"] = {"WEP", formatInt(GetPeriodicElderPoints())},
+		["WeeklyElderPoints"] = {"WEP", ("%s (%.2f%%)"):format(formatInt(GetPeriodicElderPoints()), 100-GetPeriodicElderPoints()/GameLib.ElderPointsDailyMax)},
 		["WeeklyElderPointsCap"] = {"WEPC", formatInt(GameLib.ElderPointsDailyMax)},
 		["EPToWeeklyCap"] = {"EPTWC", formatInt(GameLib.ElderPointsDailyMax-GetPeriodicElderPoints())},
 		["TotalEPThisSession"] = {"TEPTS", formatInt(nEPThisSession)},
