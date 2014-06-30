@@ -196,11 +196,11 @@ end
 -----------------------------------------------------------------------------------------------
 
 function addon:DelayedInit()
-	self.uPlayer = GameLib.GetPlayerUnit()
+	local uPlayer = GameLib.GetPlayerUnit()
 
-	if self.uPlayer then -- bit hacky, but let's say if the player unit is present we can start working
+	if uPlayer then -- bit hacky, but let's say if the player unit is present we can start working
 		self.tTooltipLines = {}
-		local tTooltipLines = (self.uPlayer:GetBasicStats().nLevel == nMaxLevel) and tTooltipLinesAtMax or tTooltipLinesBelowMax
+		local tTooltipLines = (uPlayer:GetBasicStats().nLevel == nMaxLevel) and tTooltipLinesAtMax or tTooltipLinesBelowMax
 		local l,t,r,b = self.wndTooltipForm:GetAnchorOffsets()
 		-- do it like this so when changing the TooltipLine height it dynamically changes the whole tooltips height too
 		self.wndTooltipForm:SetAnchorOffsets(l, t, r, #tTooltipLines*select(4, Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", nil, self):GetAnchorOffsets()))
@@ -325,7 +325,7 @@ function addon:UpdateText()
 	end
 	local nTimeThisLevel = nTotalTimePlayed - self.tDB.nLevelStart
 
-	local nLevel = self.uPlayer:GetBasicStats().nLevel
+	local nLevel = GameLib.GetPlayerUnit():GetBasicStats().nLevel
 	local nXPThisSession = GetXp() - self.nSessionXPStart
 	local nEPThisSession = GetPeriodicElderPoints() - self.nSessionEPStart
 
@@ -380,22 +380,24 @@ function addon:UpdateText()
 		["Nothing"] = { "Nothing" },
 	}
 
-	local tTooltipLines = (self.uPlayer:GetBasicStats().nLevel == nMaxLevel) and tTooltipLinesAtMax or tTooltipLinesBelowMax
-	for k, v in ipairs(tTooltipLines) do
-		-- empty line text fields are left empty
-		if v then
-			if v == "MoneyGainedPerHourThisSession" then
-				self.tTooltipLines[k].wMoneyPerHour:SetAmount(round(self.nSessionMoney/(self.nTimeThisSession/3600)))
-			elseif v == "MoneyGainedThisSession" then
-				self.tTooltipLines[k].wMoneyGained:SetAmount(round(self.nSessionMoney))
-			elseif self.tShortTextsAndValues[v] then
-				self.tTooltipLines[k].form:FindChild("Value"):SetText(self.tShortTextsAndValues[v][2])
-			else
-				self.tTooltipLines[k].form:SetText(v)
+	local tTooltipLines = (GameLib.GetPlayerUnit():GetBasicStats().nLevel == nMaxLevel) and tTooltipLinesAtMax or tTooltipLinesBelowMax
+	if self.tTooltipLines then
+		for k, v in ipairs(tTooltipLines) do
+			-- empty line text fields are left empty
+			if v then
+				if v == "MoneyGainedPerHourThisSession" then
+					self.tTooltipLines[k].wMoneyPerHour:SetAmount(round(self.nSessionMoney/(self.nTimeThisSession/3600)))
+				elseif v == "MoneyGainedThisSession" then
+					self.tTooltipLines[k].wMoneyGained:SetAmount(round(self.nSessionMoney))
+				elseif self.tShortTextsAndValues[v] then
+					self.tTooltipLines[k].form:FindChild("Value"):SetText(self.tShortTextsAndValues[v][2])
+				else
+					self.tTooltipLines[k].form:SetText(v)
+				end
 			end
 		end
+		self.wndTooltipForm:ArrangeChildrenVert(0)
 	end
-	self.wndTooltipForm:ArrangeChildrenVert(0)
 
 	local left = ""
 	if self.tDB.LeftText and self.tShortTextsAndValues[self.tDB.LeftText] then
@@ -447,7 +449,7 @@ end
 
 -- on timer
 function addon:OnTimer()
-	if self.uPlayer then
+	if GameLib.GetPlayerUnit() then
 		self:GetXP()
 	end
 end
