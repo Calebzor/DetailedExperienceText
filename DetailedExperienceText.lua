@@ -48,7 +48,7 @@ local addon = DetailedExperienceText
 -----------------------------------------------------------------------------------------------
 -- Strings
 -----------------------------------------------------------------------------------------------
-
+local nMaxLevel = 50
 local L = {
 	["TotalTimePlayed"] = "Total time played",
 	["TimeThisLevel"] = "Time this level",
@@ -78,7 +78,7 @@ local L = {
 
 -- falses are empty lines
 -- always have empty line at top and bottom to have it fit nicely in the frame
-local tTooltipLines = {
+local tTooltipLinesBelowMax = {
 	false,
 	"TotalTimePlayed",
 	"TimeThisLevel",
@@ -95,6 +95,22 @@ local tTooltipLines = {
 	"XPPerHourThisSession",
 	"TimeToLevelForThisLevel",
 	"TimeToLevelForThisSession",
+	false,
+	"MoneyGainedPerHourThisSession",
+	"MoneyGainedThisSession",
+	false,
+	"Alt+Left Click to reset session data.",
+	false,
+}
+
+local tTooltipLinesAtMax = {
+	false,
+	"TotalTimePlayed",
+	"TimeThisLevel",
+	"TimeThisSession",
+	false,
+	"Level",
+	"RestXP",
 	false,
 	"ElderPointsPerGem",
 	"WeeklyElderPoints",
@@ -129,6 +145,8 @@ end
 -- DetailedExperienceText OnLoad
 -----------------------------------------------------------------------------------------------
 function addon:OnLoad()
+	Apollo.RegisterTimerHandler("DelayedInit", "DelayedInit", self)
+	Apollo.CreateTimer("DelayedInit", 1, false)
 	-- Register handlers for events, slash commands and timer, etc.
 	Apollo.RegisterSlashCommand("det", "OnDETOptions", self)
 	Apollo.RegisterTimerHandler("OneSecTimer", "OnTimer", self)
@@ -161,28 +179,6 @@ function addon:OnLoad()
 	self.wndMain:Show(true)
 
 	self.wndTooltipForm = self.wndMain:FindChild("Text"):LoadTooltipForm("DetailedExperienceText.xml", "TooltipForm", self)
-	local l,t,r,b = self.wndTooltipForm:GetAnchorOffsets()
-	-- do it like this so when changing the TooltipLine height it dynamically changes the whole tooltips height too
-	self.wndTooltipForm:SetAnchorOffsets(l, t, r, #tTooltipLines*select(4, Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", nil, self):GetAnchorOffsets()))
-	self.wndMain:FindChild("Text"):SetTooltipForm(self.wndTooltipForm)
-	self.wndTooltipForm:DestroyChildren() -- clear the tooltip
-	self.tTooltipLines = {}
-	for k, v in ipairs(tTooltipLines) do
-		-- empty line text fields are left empty
-		self.tTooltipLines[k] = {}
-		self.tTooltipLines[k].form = Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", self.wndTooltipForm, self)
-		if v then
-			if v == "MoneyGainedPerHourThisSession" then
-				self.tTooltipLines[k].wMoneyPerHour = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
-			elseif v == "MoneyGainedThisSession" then
-				self.tTooltipLines[k].wMoneyGained = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
-			end
-			if L[v] then
-				self.tTooltipLines[k].form:FindChild("Key"):SetText(L[v]..":") -- this is alligned to right
-			end
-		end
-	end
-	self.wndTooltipForm:ArrangeChildrenVert(0)
 
 	self.wndOptions = Apollo.LoadForm("DetailedExperienceText.xml", "Options", nil, self)
 	self.wndOptions:Show(false)
@@ -198,6 +194,38 @@ end
 -----------------------------------------------------------------------------------------------
 -- DetailedExperienceText Functions
 -----------------------------------------------------------------------------------------------
+
+function addon:DelayedInit()
+	self.uPlayer = GameLib.GetPlayerUnit()
+
+	if self.uPlayer then -- bit hacky, but let's say if the player unit is present we can start working
+		self.tTooltipLines = {}
+		local tTooltipLines = (self.uPlayer:GetBasicStats().nLevel == nMaxLevel) and tTooltipLinesAtMax or tTooltipLinesBelowMax
+		local l,t,r,b = self.wndTooltipForm:GetAnchorOffsets()
+		-- do it like this so when changing the TooltipLine height it dynamically changes the whole tooltips height too
+		self.wndTooltipForm:SetAnchorOffsets(l, t, r, #tTooltipLines*select(4, Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", nil, self):GetAnchorOffsets()))
+		self.wndMain:FindChild("Text"):SetTooltipForm(self.wndTooltipForm)
+		self.wndTooltipForm:DestroyChildren() -- clear the tooltip
+		for k, v in ipairs(tTooltipLines) do
+			-- empty line text fields are left empty
+			self.tTooltipLines[k] = {}
+			self.tTooltipLines[k].form = Apollo.LoadForm("DetailedExperienceText.xml", "TooltipLine", self.wndTooltipForm, self)
+			if v then
+				if v == "MoneyGainedPerHourThisSession" then
+					self.tTooltipLines[k].wMoneyPerHour = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
+				elseif v == "MoneyGainedThisSession" then
+					self.tTooltipLines[k].wMoneyGained = Apollo.LoadForm("DetailedExperienceText.xml", "CashDisplay", self.tTooltipLines[k].form:FindChild("Value"), self)
+				end
+				if L[v] then
+					self.tTooltipLines[k].form:FindChild("Key"):SetText(L[v]..":") -- this is alligned to right
+				end
+			end
+		end
+		self.wndTooltipForm:ArrangeChildrenVert(0)
+	else
+		Apollo.CreateTimer("DelayedInit", 1, false)
+	end
+end
 
 function addon:OnInterfaceMenuListHasLoaded()
 	Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "Detailed Experience Text", { "OnDETOptions", "", ""})
@@ -234,10 +262,15 @@ function addon:OnRestore(eLevel, tData)
 	if tData.wndMainposition then
 		self.wndMain:SetAnchorOffsets(tData.wndMainposition.l, tData.wndMainposition.t, tData.wndMainposition.r, tData.wndMainposition.b)
 	end
+
+	Apollo.RegisterTimerHandler("DelayedInit", "DelayedInit", self)
 end
 
 function addon:OnPlayerLevelChange(nLevel, nAttributePoints, nAbilityPoints)
 	self.tDB.nLevelStart = self.tDB.nPlayed + self.nTimeThisSession
+	if nLevel == nMaxLevel then -- switch tooltip for max level
+		self:DelayedInit()
+	end
 end
 
 function addon:OnLootedMoney(monLooted)
@@ -292,7 +325,7 @@ function addon:UpdateText()
 	end
 	local nTimeThisLevel = nTotalTimePlayed - self.tDB.nLevelStart
 
-	local nLevel = GameLib.GetPlayerUnit():GetBasicStats().nLevel
+	local nLevel = self.uPlayer:GetBasicStats().nLevel
 	local nXPThisSession = GetXp() - self.nSessionXPStart
 	local nEPThisSession = GetPeriodicElderPoints() - self.nSessionEPStart
 
@@ -347,6 +380,7 @@ function addon:UpdateText()
 		["Nothing"] = { "Nothing" },
 	}
 
+	local tTooltipLines = (self.uPlayer:GetBasicStats().nLevel == nMaxLevel) and tTooltipLinesAtMax or tTooltipLinesBelowMax
 	for k, v in ipairs(tTooltipLines) do
 		-- empty line text fields are left empty
 		if v then
@@ -413,7 +447,7 @@ end
 
 -- on timer
 function addon:OnTimer()
-	if GameLib.GetPlayerUnit() then
+	if self.uPlayer then
 		self:GetXP()
 	end
 end
